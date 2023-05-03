@@ -1,6 +1,6 @@
 # takes policy inputs related to the balance of locked Ocean and returns new state
 def s_lockedocean(params, substep, state_history, previous_state, policy_input):
-    locked_amount = previous_state['veaccount_1_locked'] + policy_input['new_locked_ocean'] + policy_input['rebalanceocean_locked']
+    locked_amount = previous_state['veaccount_1_locked'] + policy_input['new_locked_ocean'] + policy_input['rebalancedocean_locked']
     return 'veaccount_1_locked', locked_amount
 def s_oceanholderbalance(params, substep, state_history, previous_state, policy_input):
     balance = previous_state['oceanholder_oceanbalance'] - policy_input['new_locked_ocean'] + policy_input['new_withdrawn_ocean']

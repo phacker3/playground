@@ -1,13 +1,18 @@
+import sys
+sys.path.append("C:/Users/Surface/Documents/repos/playground")
+
 # policies put inputs to the mechanisms and output changes to state/stateful metric 
-import ..Mechanism.m_ve as m
-import ..behavior.b_ve as b
+import Oceanmodel.Mechanism.m_ve as m
+import Oceanmodel.behavior.b_ve as b
 
 def p_lock_ocean(params, substep, state_history, previous_state):
-    ocean, _ = m.lockocean(b.behavior_lockocean(previous_state['timestep'] + 1))
+    amt, t = b.behavior_lockocean(previous_state['timestep'] + 1)
+    ocean, _ = m.lockocean(amt, t)
     return {'new_locked_ocean': ocean}
 
 def p_set_veaccount_params_duration(params, substep, state_history, previous_state):
-    _, duration = m.lockocean(b.behavior_lockocean(previous_state['timestep'] + 1))
+    amt, t = b.behavior_lockocean(previous_state['timestep'] + 1)
+    _, duration = m.lockocean(amt, t)
     return {'new_account_duration': duration}
 
 def p_set_veaccount_params_timestamp(params, substep, state_history, previous_state):
@@ -34,12 +39,14 @@ def p_rebalance_veocean(params, substep, state_history, previous_state):
 
 # update data asset for veallocation according to 'behavior vote' needs to run at the beginning of step!
 def p_set_vote_data_asset(params, substep, state_history, previous_state):
-    data_asset, _ = m.vote(b.behavior_vote(previous_state['timestep'] + 1))
+    a, p = b.behavior_vote(previous_state['timestep'] + 1)
+    data_asset, _ = m.vote(a, p)
     return {'vote_data_asset': data_asset}
 
 # update percent for veallocation according to 'behavior vote' needs to run at the beginning of step!
 def p_set_vote_percent(params, substep, state_history, previous_state):
-    _, percent = m.vote(b.behavior_vote(previous_state['timestep'] + 1))
+    a, p = b.behavior_vote(previous_state['timestep'] + 1)
+    _, percent = m.vote(a, p)
     return {'vote_percent': percent}
 
 def p_aggregate_votes(params, substep, state_history, previous_state):
