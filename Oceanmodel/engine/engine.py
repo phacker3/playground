@@ -1,5 +1,6 @@
 import sys
-sys.path.append("C:/Users/Surface/Documents/repos/playground")
+#sys.path.append("C:/Users/Surface/Documents/repos/playground")
+sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 
 from Oceanmodel.Policy.p_ve import *
 from Oceanmodel.StateUpdates.s_ve import *

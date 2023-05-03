@@ -1,2 +1,2 @@
-venv_ocean/
+venv*
 __pycache__

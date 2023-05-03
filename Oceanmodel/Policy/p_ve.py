@@ -1,5 +1,7 @@
 import sys
-sys.path.append("C:/Users/Surface/Documents/repos/playground")
+#sys.path.append("C:/Users/Surface/Documents/repos/playground")
+sys.path.append("/home/peterhacker/Documents/phRepo/playground")
+
 
 # policies put inputs to the mechanisms and output changes to state/stateful metric 
 import Oceanmodel.Mechanism.m_ve as m
