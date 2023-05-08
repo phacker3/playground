@@ -1,6 +1,9 @@
 # takes policy inputs related to the balance of locked Ocean and returns new state
-def s_lockedocean(params, substep, state_history, previous_state, policy_input):
-    locked_amount = previous_state['veaccount_1_locked'] + policy_input['new_locked_ocean'] + policy_input['rebalancedocean_locked']
+def s_lock_ocean(params, substep, state_history, previous_state, policy_input):
+    locked_amount = previous_state['veaccount_1_locked'] + policy_input['new_locked_ocean']
+    return 'veaccount_1_locked', locked_amount
+def s_locked_ocean(params, substep, state_history, previous_state, policy_input):
+    locked_amount = policy_input['rebalancedocean_locked']
     return 'veaccount_1_locked', locked_amount
 def s_oceanholderbalance(params, substep, state_history, previous_state, policy_input):
     balance = previous_state['oceanholder_oceanbalance'] - policy_input['new_locked_ocean'] + policy_input['new_withdrawn_ocean']
@@ -37,6 +40,7 @@ def s_veocean_balance(params, substep, state_history, previous_state, policy_inp
 # takes policy inputs related to setting data asset number and allocation precent and returning a new state
 def s_data_asset_pct(params, substep, state_history, previous_state, policy_input):
     if policy_input['vote_data_asset'] == 1:
+    #if policy_input['vote_percent'] > 0:
         pct = policy_input['vote_percent']
     else:
         pct = previous_state['veaccount_1_asset_1_votepercent']

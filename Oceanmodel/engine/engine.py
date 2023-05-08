@@ -31,12 +31,11 @@ initial_state = {
     'veaccount_1_withdrawn': 0.0,
     'veaccount_1_vebalance': 0.0,
     'veaccount_1_asset_1_votepercent': 0.0,
-    'veaccount_1_asset_1_vebalance': 0.0,
     'asset_1_veallocation': 0.0
 }   
 
 system_params = {
-    'vecontract_maxlock': [4*52]
+    'vecontract_maxlock': [4*52*7]
 }
 
 partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veoceanbalance
@@ -53,7 +52,7 @@ partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veocean
         'variables': {
             'veaccount_1_lockduration': s_lockedocean_duration,
             'oceanholder_oceanbalance':s_oceanholderbalance,
-            'veaccount_1_locked':s_lockedocean,
+            'veaccount_1_locked':s_lock_ocean,
             'veaccount_1_initialocean':s_lockedocean_initialamount,
             'veaccount_1_lockperiodstart':s_lockedocean_starttimestamp,
             'veaccount_1_withdrawn': s_withdrawnocean,
@@ -78,7 +77,7 @@ partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veocean
         },
         # State variables
         'variables': {
-            'veaccount_1_locked': s_lockedocean,
+            'veaccount_1_locked': s_locked_ocean,
             'asset_1_veallocation': s_aggvotes
         }
     }
@@ -87,7 +86,7 @@ partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veocean
 
 sim_config = config_sim({
     "N": 1,
-    "T": range(250),
+    "T": range(1460), #4 years
     "M": system_params
 })
 
@@ -105,4 +104,4 @@ raw_result, tensor_field, sessions = simulation.execute()
 
 simulation_result = pd.DataFrame(raw_result)
 
-print(simulation_result.head())
+#print(simulation_result.head())

@@ -23,3 +23,7 @@ def vote(asset, percent):
     assetnum = asset
     pct = percent
     return assetnum, pct
+
+#def vote(percent):
+#    pct = percent
+#    return pct

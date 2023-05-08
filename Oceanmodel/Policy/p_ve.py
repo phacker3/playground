@@ -8,17 +8,21 @@ import Oceanmodel.Mechanism.m_ve as m
 import Oceanmodel.behavior.b_ve as b
 
 def p_lock_ocean(params, substep, state_history, previous_state):
-    amt, t = b.behavior_lockocean(previous_state['timestep'] + 1)
-    ocean, _ = m.lockocean(amt, t)
+    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
+    ocean, _ = m.lockocean(amt, dur)
     return {'new_locked_ocean': ocean}
 
 def p_set_veaccount_params_duration(params, substep, state_history, previous_state):
-    amt, t = b.behavior_lockocean(previous_state['timestep'] + 1)
-    _, duration = m.lockocean(amt, t)
+    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
+    _, duration = m.lockocean(amt, dur)
     return {'new_account_duration': duration}
 
 def p_set_veaccount_params_timestamp(params, substep, state_history, previous_state):
-    starting_timestep = previous_state['timestep'] + 1
+    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
+    if amt > 0:
+        starting_timestep = previous_state['timestep'] + 1
+    else:
+        starting_timestep = 0
     return {'new_starting_timestep': starting_timestep}
 
 # update withdrawn amount according to 'behavior_withdraw'
@@ -28,8 +32,11 @@ def p_withdraw_ocean(params, substep, state_history, previous_state):
 
 # update unlocked amt (amt will be recalculated and previous state overwritten) needs to run after 'withdrawn',
 def p_rebalance_unlocked_ocean(params, substep, state_history, previous_state):
-    unlockedocean = previous_state['veaccount_1_initialocean'] * (previous_state['timestep'] - previous_state['veaccount_1_lockperiodstart'])/previous_state['veaccount_1_lockduration'] - previous_state['veaccount_1_withdrawn']
-    return {'total_unlocked': unlockedocean}
+    if previous_state['veaccount_1_initialocean'] == 0:
+        unlockedocean = 0
+    else:
+        unlockedocean = previous_state['veaccount_1_initialocean'] * (previous_state['timestep'] - previous_state['veaccount_1_lockperiodstart'])/previous_state['veaccount_1_lockduration'] - previous_state['veaccount_1_withdrawn']
+    return {'total_unlocked': min(unlockedocean, previous_state['veaccount_1_initialocean'] - previous_state['veaccount_1_withdrawn'])}
 # update locked amt. needs to run after 'rebalance unlocked' and 'withdraw'
 def p_rebalance_locked_ocean(params, substep, state_history, previous_state):
     lockedocean = previous_state['veaccount_1_initialocean'] - previous_state['veaccount_1_unlocked'] - previous_state['veaccount_1_withdrawn']
@@ -37,7 +44,7 @@ def p_rebalance_locked_ocean(params, substep, state_history, previous_state):
 # update veOcean balance according to ve votes decrease mechanism
 def p_rebalance_veocean(params, substep, state_history, previous_state):
     balance = previous_state['veaccount_1_initialocean'] * (previous_state['veaccount_1_lockduration'] - (previous_state['timestep'] - previous_state['veaccount_1_lockperiodstart'])) / params['vecontract_maxlock']
-    return {'total_veocean_balance': balance}
+    return {'total_veocean_balance': max(balance, 0)}
 
 # update data asset for veallocation according to 'behavior vote' needs to run at the beginning of step!
 def p_set_vote_data_asset(params, substep, state_history, previous_state):
@@ -48,7 +55,9 @@ def p_set_vote_data_asset(params, substep, state_history, previous_state):
 # update percent for veallocation according to 'behavior vote' needs to run at the beginning of step!
 def p_set_vote_percent(params, substep, state_history, previous_state):
     a, p = b.behavior_vote(previous_state['timestep'] + 1)
+    #p = b.behavior_vote(previous_state['timestep'] + 1)
     _, percent = m.vote(a, p)
+    #percent = m.vote(p)
     return {'vote_percent': percent}
 
 def p_aggregate_votes(params, substep, state_history, previous_state):
