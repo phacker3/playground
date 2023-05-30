@@ -51,3 +51,15 @@ def s_aggvotes(params, substep, state_history, previous_state, policy_input):
     votes = policy_input['data_asset_1_votes']
     return 'asset_1_veallocation', votes
 
+"""
+NEW
+STATE
+UPDATES
+"""
+
+def s_agents_oceanholder(params, substep, state_history, previous_state, policy_input):
+
+    all_agents = previous_state['agents_oceanholder']
+    modified_agents = all_agents[]
+
+    return 

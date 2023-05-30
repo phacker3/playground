@@ -45,11 +45,22 @@ def p_withdraw_ocean(params, substep, state_history, previous_state):
 
     return {'delta_withdrawn_ocean': (oceanholder, amt, acct)} #referenced to increase oceanholders ocean balance, and increase veaccount withdrawn balance
 
+def p_lock_withdraw_ocean(params, substep, state_history, previous_state):
+    values = b.behavior_move_ocean(previous_state['timestep']+1,
+                                   previous_state['agents_oceanholder'],
+                                   previous_state['agents_veaccount'],
+                                   params['vecontract_minlock'],
+                                   params['vecontract_maxlock'])
+    
+    # if action is 'lock'
+    #   > Oceanholder: subtract ocean_amounts and append veaccounts
+    #   > veaccount: initialize veaccounts, add ocean_amounts, initialize parameters
+    if values
+    # if action is 'withdraw'
+    #   > Oceanholder: add ocean_amounts
+    #   > veaccount: subtract unlocked amount, increase withdrawn amount
 
-!!!!!!!!!!!!!!!!!!!1
-next
-- see miro for ideas about combining lock / withdraw behaviors, and policy functions
-!!!!!!!!!!!!!!!!!!!1
+    return {'delta_ocean': ()}
 
 
 

@@ -6,7 +6,7 @@ import uuid
 class oceanholder:
     #wallet: str
     oceanbalance: float
-    veaccounts: list
+    veaccounts: list(str)
 
 class veaccount:
     initialocean: float
