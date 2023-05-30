@@ -4,26 +4,54 @@ sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 
 
 # policies put inputs to the mechanisms and output changes to state/stateful metric 
-import Oceanmodel.Mechanism.m_ve as m
-import Oceanmodel.behavior.b_ve as b
+import Oceanmodel.mechanism_ve as m
+import Oceanmodel.behavior_ve as b
+import Oceanmodel.agents_ve as a
 
+# policies related to an ocean holder locking ocean and creating a new ve account
 def p_lock_ocean(params, substep, state_history, previous_state):
-    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
-    ocean, _ = m.lockocean(amt, dur)
-    return {'new_locked_ocean': ocean}
+    values = b.behavior_lockocean(previous_state['timestep']+1,
+                                previous_state['agents_oceanholder'],
+                                params['vecontract_minlock'],
+                                params['vecontract_maxlock'])
+    oceanholder = values.keys()
+    amt = values[oceanholder][0]
+    acct = values[oceanholder][2]
+    
+    return {'delta_locked_ocean': (oceanholder, amt, acct)} #referenced to decrease oceanholder ocean balance, and increase veaccount locked balance
 
-def p_set_veaccount_params_duration(params, substep, state_history, previous_state):
-    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
-    _, duration = m.lockocean(amt, dur)
-    return {'new_account_duration': duration}
+def p_new_ve_account(params, substep, state_history, previous_state):
+    values = b.behavior_lockocean(previous_state['timestep']+1,
+                                  previous_state['agents_oceanholder'],
+                                  params['vecontract_minlock'],
+                                  params['vecontract_maxlock'])
+    oceanholder = values.keys()
+    amt = values[oceanholder][0]
+    dur = values[oceanholder][1]
+    acct = values[oceanholder][2]
 
-def p_set_veaccount_params_timestamp(params, substep, state_history, previous_state):
-    amt, dur = b.behavior_lockocean(previous_state['timestep'] + 1)
-    if amt > 0:
-        starting_timestep = previous_state['timestep'] + 1
-    else:
-        starting_timestep = 0
-    return {'new_starting_timestep': starting_timestep}
+    init_timestamp = previous_state['timestep']+1
+
+    return {'new_ve_account': {acct, (amt, dur, init_timestamp)}} #referenced to initialize veaccount params
+
+# policies related to an ocean holder withdrawing ocean
+def p_withdraw_ocean(params, substep, state_history, previous_state):
+    values = b.behavior_withdraw(previous_state['timestep']+1,
+                                 previous_state['agents_oceanholder'],
+                                 previous_state['agents_veaccount'])
+    oceanholder = values.keys()
+    acct = values[oceanholder][0]
+    amt = values[oceanholder][1]
+
+    return {'delta_withdrawn_ocean': (oceanholder, amt, acct)} #referenced to increase oceanholders ocean balance, and increase veaccount withdrawn balance
+
+
+!!!!!!!!!!!!!!!!!!!1
+next
+- see miro for ideas about combining lock / withdraw behaviors, and policy functions
+!!!!!!!!!!!!!!!!!!!1
+
+
 
 # update withdrawn amount according to 'behavior_withdraw'
 def p_withdraw_ocean(params, substep, state_history, previous_state):

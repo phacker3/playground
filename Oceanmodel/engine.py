@@ -2,8 +2,9 @@ import sys
 #sys.path.append("C:/Users/Surface/Documents/repos/playground")
 sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 
-from Oceanmodel.Policy.p_ve import *
-from Oceanmodel.StateUpdates.s_ve import *
+from Oceanmodel.policy_ve import *
+from Oceanmodel.stateupdates_ve import *
+from Oceanmodel.agents_ve import *
 
 import pandas as pd
 
@@ -20,21 +21,23 @@ del configs[:] # Clear any prior configs
 
 experiment = Experiment()
 
-initial_state = {
-    'systime': 0,
-    'oceanholder_oceanbalance': 200.0,
-    'veaccount_1_initialocean': 0.0,
-    'veaccount_1_lockduration': 0.0,
-    'veaccount_1_lockperiodstart': 0,
-    'veaccount_1_locked': 0.0,
-    'veaccount_1_unlocked': 0.0,
-    'veaccount_1_withdrawn': 0.0,
-    'veaccount_1_vebalance': 0.0,
-    'veaccount_1_asset_1_votepercent': 0.0,
-    'asset_1_veallocation': 0.0
+
+initial_values = {
+    'initial_ocean_holders': 10,
+    'initial_data_assets': 5,
+    'initial_token_supply': 1e6
 }   
 
+genesis_states = {
+    'agents_oceanholder': initialize_agent_oceanholder(initial_values['initial_ocean_holders'], initial_values['initial_token_supply']),
+    'agents_data_asset': initialize_agent_data_asset(initial_values['initial_data_assets']),
+    'agents_veaccount': initialize_agent_veaccount()
+}
+
+initial_state = genesis_states
+
 system_params = {
+    'vecontract_minlock': [7],
     'vecontract_maxlock': [4*52*7]
 }
 
