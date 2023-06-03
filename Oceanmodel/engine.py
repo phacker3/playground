@@ -40,52 +40,62 @@ system_params = {
     'vecontract_minlock': [7],
     'vecontract_maxlock': [4*52*7]
 }
-
-partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veoceanbalance
+partial_state_update_blocks = [
     {
         'policies': {
-            'new_account_duration': p_set_veaccount_params_duration,
-            'new_locked_ocean': p_lock_ocean,
-            'new_starting_timestep': p_set_veaccount_params_timestamp,
-            'new_withdrawn_ocean': p_withdraw_ocean,
-            'vote_data_asset': p_set_vote_data_asset,
-            'vote_percent': p_set_vote_percent
+            'p_lock_withdraw_ocean': p_lock_withdraw_ocean
         },
-        # State variables
-        'variables': {
-            'veaccount_1_lockduration': s_lockedocean_duration,
-            'oceanholder_oceanbalance':s_oceanholderbalance,
-            'veaccount_1_locked':s_lock_ocean,
-            'veaccount_1_initialocean':s_lockedocean_initialamount,
-            'veaccount_1_lockperiodstart':s_lockedocean_starttimestamp,
-            'veaccount_1_withdrawn': s_withdrawnocean,
-            'veaccount_1_asset_1_votepercent':s_data_asset_pct
-        }
-    },
-    {
-        'policies': {
-            'total_unlocked': p_rebalance_unlocked_ocean,
-            'total_veocean_balance': p_rebalance_veocean
-        },
-        # State variables
-        'variables': {
-            'veaccount_1_unlocked': s_unlockedocean,
-            'veaccount_1_vebalance': s_veocean_balance
-        }
-    },
-    {
-        'policies': {
-            'rebalancedocean_locked': p_rebalance_locked_ocean,
-            'data_asset_1_votes': p_aggregate_votes
-        },
-        # State variables
-        'variables': {
-            'veaccount_1_locked': s_locked_ocean,
-            'asset_1_veallocation': s_aggvotes
+        'variables':{
+            'oceanholders': s_agents_oceanholder,
+            'veaccounts': s_agents_veaccount
         }
     }
-    
 ]
+#partial_state_update_blocks = [ # note that #aggvotes needs to run AFTER veoceanbalance
+#    {
+#        'policies': {
+#            'new_account_duration': p_set_veaccount_params_duration,
+#            'new_locked_ocean': p_lock_ocean,
+#            'new_starting_timestep': p_set_veaccount_params_timestamp,
+#            'new_withdrawn_ocean': p_withdraw_ocean,
+#            'vote_data_asset': p_set_vote_data_asset,
+#            'vote_percent': p_set_vote_percent
+#        },
+#        # State variables
+#        'variables': {
+#            'veaccount_1_lockduration': s_lockedocean_duration,
+#            'oceanholder_oceanbalance':s_oceanholderbalance,
+#            'veaccount_1_locked':s_lock_ocean,
+#            'veaccount_1_initialocean':s_lockedocean_initialamount,
+#            'veaccount_1_lockperiodstart':s_lockedocean_starttimestamp,
+#            'veaccount_1_withdrawn': s_withdrawnocean,
+#            'veaccount_1_asset_1_votepercent':s_data_asset_pct
+#        }
+#    },
+#    {
+#        'policies': {
+#            'total_unlocked': p_rebalance_unlocked_ocean,
+#            'total_veocean_balance': p_rebalance_veocean
+#        },
+#        # State variables
+#        'variables': {
+#            'veaccount_1_unlocked': s_unlockedocean,
+#            'veaccount_1_vebalance': s_veocean_balance
+#        }
+#    },
+#    {
+#        'policies': {
+#            'rebalancedocean_locked': p_rebalance_locked_ocean,
+#            'data_asset_1_votes': p_aggregate_votes
+#        },
+#        # State variables
+#        'variables': {
+#            'veaccount_1_locked': s_locked_ocean,
+#            'asset_1_veallocation': s_aggvotes
+#        }
+#    }
+#    
+#]
 
 sim_config = config_sim({
     "N": 1,
