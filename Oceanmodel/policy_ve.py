@@ -89,40 +89,24 @@ def p_rebalance(params, substep, state_history, previous_state):
 
 
 def p_vote(params, substep, state_history, previous_state):
-    
-    return {'unlocked_balances': unlocked_balances, 'veocean_delta': veocean_balances}
+    behavior_data = b.behavior_vote(previous_state['timestep']+1,
+                                    previous_state['agents_oceanholder'],
+                                    previous_state['agents_data_asset'])
+    agent_asset_pct = {key: value for key, value in behavior_data.items() if key != '0'}
+    return {'set_votes': agent_asset_pct}
 
-## update unlocked amt (amt will be recalculated and previous state overwritten) needs to run after 'withdrawn',
-#def p_rebalance_unlocked_ocean(params, substep, state_history, previous_state):
-#    if previous_state['veaccount_1_initialocean'] == 0:
-#        unlockedocean = 0
-#    else:
-#        unlockedocean = previous_state['veaccount_1_initialocean'] * (previous_state['timestep'] - previous_state['veaccount_1_lockperiodstart'])/previous_state['veaccount_1_lockduration'] - previous_state['veaccount_1_withdrawn']
-#    return {'total_unlocked': min(unlockedocean, previous_state['veaccount_1_initialocean'] - previous_state['veaccount_1_withdrawn'])}
-## update locked amt. needs to run after 'rebalance unlocked' and 'withdraw'
-#def p_rebalance_locked_ocean(params, substep, state_history, previous_state):
-#    lockedocean = previous_state['veaccount_1_initialocean'] - previous_state['veaccount_1_unlocked'] - previous_state['veaccount_1_withdrawn']
-#    return {'rebalancedocean_locked': lockedocean}
-## update veOcean balance according to ve votes decrease mechanism
-#def p_rebalance_veocean(params, substep, state_history, previous_state):
-#    balance = previous_state['veaccount_1_initialocean'] * (previous_state['veaccount_1_lockduration'] - (previous_state['timestep'] - previous_state['veaccount_1_lockperiodstart'])) / params['vecontract_maxlock']
-#    return {'total_veocean_balance': max(balance, 0)}
-#
-## update data asset for veallocation according to 'behavior vote' needs to run at the beginning of step!
-#def p_set_vote_data_asset(params, substep, state_history, previous_state):
-#    a, p = b.behavior_vote(previous_state['timestep'] + 1)
-#    data_asset, _ = m.vote(a, p)
-#    return {'vote_data_asset': data_asset}
-#
-## update percent for veallocation according to 'behavior vote' needs to run at the beginning of step!
-#def p_set_vote_percent(params, substep, state_history, previous_state):
-#    a, p = b.behavior_vote(previous_state['timestep'] + 1)
-#    #p = b.behavior_vote(previous_state['timestep'] + 1)
-#    _, percent = m.vote(a, p)
-#    #percent = m.vote(p)
-#    return {'vote_percent': percent}
-#
-#def p_aggregate_votes(params, substep, state_history, previous_state):
-#    veocean = previous_state['veaccount_1_vebalance'] * previous_state['veaccount_1_asset_1_votepercent']
-#            #+ previous_state['veaccount_2_vebalance'] * previous_state['veaccount_2_asset_1_votepercent']
-#    return {'data_asset_1_votes': veocean}
+
+# update data asset for veallocation according to 'behavior vote' needs to run at the beginning of step!
+def p_aggregate_votes(params, substep, state_history, previous_state):
+    # multiply each agent's vote percent by their ve balance
+    data_asset_agg_votes = {}
+    for asset in previous_state['agents_data_asset'].keys():
+        agg_votes = 0
+        for agent in previous_state['agents_oceanholder'].keys():
+            agent_total_ve_balance = 0
+            if asset in previous_state['agents_oceanholder'][agent].votepercent.keys():
+                for acct in previous_state['agents_oceanholder'][agent].veaccounts.keys():
+                    agent_total_ve_balance += previous_state['agents_oceanholder'][agent].veaccounts[acct].vebalance
+                agg_votes += agent_total_ve_balance * previous_state['agents_oceanholder'][agent].votepercent[asset]
+        data_asset_agg_votes[asset] = agg_votes
+    return {'data_asset_agg_votes': data_asset_agg_votes}
