@@ -4,7 +4,6 @@ sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 
 
 # policies put inputs to the mechanisms and output changes to state/stateful metric 
-import Oceanmodel.mechanism_ve as m
 import Oceanmodel.behavior_ve as b
 import Oceanmodel.agents_ve as a
 

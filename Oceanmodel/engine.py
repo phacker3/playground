@@ -24,7 +24,7 @@ experiment = Experiment()
 
 initial_values = {
     'initial_ocean_holders': 5,
-    'initial_data_assets': 2,
+    'initial_data_assets': 6,
     'initial_token_supply': 1e6
 }   
 
@@ -48,17 +48,8 @@ partial_state_update_blocks = [
         },
         'variables':{
             'agents_oceanholder': s_agents_oceanholder_behaviors
-            #'oceanholders': s_agents_oceanholder_vote
         }
     },
-    #{
-    #    'policies': {
-    #        'p_vote': p_vote
-    #    },
-    #    'variables':{
-    #        'oceanholders': s_agents_oceanholder_vote
-    #    }
-    #},
     {
         'policies': {
             'p_rebalance': p_rebalance
