@@ -23,16 +23,17 @@ class oceanholder:
 @dataclass
 class dataasset:
     id: uuid.UUID
-    dataconsumevolume: int
+    dataconsumevolume: float
+    dataconsumevolume_rewardsperiod: float
     veallocation: float
 
 
-def initialize_agent_oceanholder(n_oceanholders, token_supply) -> Dict[str, oceanholder]:
+def initialize_agent_oceanholder(n_oceanholders) -> Dict[str, oceanholder]:
     agents_oceanholder = {}
     for i in range(n_oceanholders):        
         agent = oceanholder(
                             id=uuid.uuid4(),
-                            oceanbalance=token_supply / n_oceanholders,
+                            oceanbalance=1e5,
                             veaccounts={},
                             votepercent={}
                             )
@@ -58,8 +59,18 @@ def initialize_agent_data_asset(n_data_assets) -> Dict[str, dataasset]:
     for i in range(n_data_assets):
         agent = dataasset(
                           id=uuid.uuid4(),
-                          dataconsumevolume=0,
+                          dataconsumevolume=0.0,
+                          dataconsumevolume_rewardsperiod=0.0,
                           veallocation=0.0
                          )
         agents_data_asset[str(agent.id)] = agent
     return agents_data_asset
+
+
+def initialize_rewards_matrix(holder_agents, data_assets) -> Dict[str, Dict[str, float]]:
+    rewards_matrix = {}
+    for agent in holder_agents.keys():
+        rewards_matrix[agent] = {}
+        for asset in data_assets.keys():
+            rewards_matrix[agent][asset] = 0.0
+    return rewards_matrix

@@ -13,7 +13,7 @@ def behavior_vote(timestep, agents: dict, assets: dict) -> Dict[uuid.UUID, Dict[
     - Note: need to restrict total percent allocated per agent <= 100%
     '''
     selected_data_assets_votes = {}
-    if timestep % 200 == 0:
+    if timestep % 127 == 0:
         valid_voting_agents = [key for key in agents.keys()]
         selected_voting_agents = random.choice(valid_voting_agents)
         valid_data_assets = [key for key in assets.keys()]
@@ -42,7 +42,7 @@ def behavior_move_ocean(timestep: int, oceanholders: dict, minlock: int, maxlock
     #                From all ocean holders with positive balance, lock a random amt (or all if balance < random amt) for Y days
     '''
     valid_locking_agents = [key for key in oceanholders.keys() if oceanholders[key].oceanbalance > 0]
-    if timestep % 150 == 0 and valid_locking_agents:
+    if timestep % 307 == 0 and valid_locking_agents:
         action_lock = 'lock'
         selected_locking_agents = random.choice(valid_locking_agents)
         ocean_balance = oceanholders[selected_locking_agents].oceanbalance
@@ -58,7 +58,7 @@ def behavior_move_ocean(timestep: int, oceanholders: dict, minlock: int, maxlock
 
     valid_withdrawing_agents = [key for key in oceanholders.keys() if [acct for acct in oceanholders[key].veaccounts.keys() if oceanholders[key].veaccounts[acct].unlocked > 0] and key not in selected_locking_agents]
     # Logic determines which agents withdraw their unlocked ocean. EXCLUDING any agent who is locking ocean.
-    if timestep % 250 == 0 and valid_withdrawing_agents:
+    if timestep % 613 == 0 and valid_withdrawing_agents:
         # iterate through all ocean holders with positive balance of unlocked tokens in a ve account
         action_withdraw = 'withdraw'
         selected_withdrawing_agents = random.choice(valid_withdrawing_agents)
@@ -80,3 +80,11 @@ def behavior_move_ocean(timestep: int, oceanholders: dict, minlock: int, maxlock
     acting_agents[selected_withdrawing_agents] = (action_withdraw, withdraw_amount, withdraw_duration, selected_veaccount)
 
     return acting_agents
+
+
+def behavior_consume_data(timestep: int, assets: dict) -> Dict[uuid.UUID, float]:
+    assets_consumed = {}
+    if timestep % 10 == 0:
+        for asset in assets.keys():
+            assets_consumed[asset] = assets[asset].dataconsumevolume + random.uniform(0,100)
+    return assets_consumed

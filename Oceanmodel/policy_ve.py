@@ -2,6 +2,8 @@ import sys
 #sys.path.append("C:/Users/Surface/Documents/repos/playground")
 sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 
+import scipy
+import numpy as np
 
 # policies put inputs to the mechanisms and output changes to state/stateful metric 
 import Oceanmodel.behavior_ve as b
@@ -109,3 +111,126 @@ def p_aggregate_votes(params, substep, state_history, previous_state):
                 agg_votes += agent_total_ve_balance * previous_state['agents_oceanholder'][agent].votepercent[asset]
         data_asset_agg_votes[asset] = agg_votes
     return {'data_asset_agg_votes': data_asset_agg_votes}
+
+# policy to release Ocean from the treasury to the active and passive rewards systems pools
+def p_release_ocean(params, substep, state_history, previous_state):
+    if (previous_state['timestep']) % 7 == 0:
+        week_num = int(previous_state['timestep'] / 7)
+        release_amt = previous_state['distribution_schedule'][week_num][0]
+        active_rewards_amt = release_amt * params['datafarming_active_share']
+        passive_rewards_amt = release_amt * (1-params['datafarming_active_share'])
+    else:
+        release_amt = 0
+        active_rewards_amt = 0
+        passive_rewards_amt = 0
+    return {'treasury_delta_ocean': (-1 * release_amt), 'active_rewards_delta_ocean': active_rewards_amt, 'rewards_pool_df_passive_delta_ocean': passive_rewards_amt}
+
+def p_rewards_matrix_snapshot(params, substep, state_history, previous_state):
+    assset_ve_bal = {}
+    agent_asset_ve_bal = {}
+    # build rewards matrix for this step, with default zero as veOcean amount
+    for agent in previous_state['agents_oceanholder'].keys():
+        for asset in previous_state['agents_data_asset'].keys():
+            assset_ve_bal[asset] = 0
+            agent_asset_ve_bal[agent] = assset_ve_bal
+        ve_bal = 0
+        for acct in previous_state['agents_oceanholder'][agent].veaccounts.keys():
+            ve_bal += previous_state['agents_oceanholder'][agent].veaccounts[acct].vebalance
+        for asset in previous_state['agents_oceanholder'][agent].votepercent.keys():
+            agent_asset_ve_bal[agent][asset] = previous_state['agents_oceanholder'][agent].votepercent[asset] * ve_bal
+    return {'rewards_matrix_snapshot': agent_asset_ve_bal}
+    
+
+def p_active_rewards(params, substep, state_history, previous_state):
+    # this rewards function can run every step, but rewards distributions will only happen according to the DistributionSchedule (i.e. when tokens are released to the rewards pools)
+    # rank data assets by dataconsumevolume and return a list of the top 100
+    data_assets = np.array([])
+    dcv_rewards_period = np.array([])
+    for asset in previous_state['agents_data_asset'].keys():
+        # to make ranking process simple, we need two identical arrays: one with data_assets, one with the corresponding DCV_rewards_period
+        data_assets = np.append(data_assets, asset)
+        dcv_rewards_period = np.append(dcv_rewards_period, previous_state['agents_data_asset'][asset].dataconsumevolume_rewardsperiod)
+    ranks = scipy.stats.rankdata(-1 * dcv_rewards_period, method='min')
+
+    # Rank j - pct_j
+    allocations = np.zeros_like(ranks)
+    top_indicies = np.where(ranks <= params['datafarming_max_assets_n'])
+    logranks = np.log10(ranks)
+    allocations[top_indicies] = max(logranks[top_indicies]) - logranks[top_indicies] + np.log10(1.5)
+    allocations_normalized = allocations / np.sum(allocations)
+
+    # latest rewards matrix
+    ij = previous_state['rewards_matrix']
+
+    # get sum from the reward period of veAllocation for each asset
+    j_tot = {}
+    for asset in data_assets:
+        j_tot[asset] = 0.0
+        for agent in ij.keys():
+            j_tot[asset] += ij[agent][asset]
+
+    # main rewards function (incl. dcv and yield cap)
+    i_rewards = {}
+    for agent in previous_state['agents_oceanholder'].keys():
+        i_rewards_amt = 0
+        for asset in data_assets:
+            if j_tot[asset] == 0:
+                continue
+            else:
+                ij_pct = ij[agent][asset] / j_tot[asset]
+                i_rewards_amt += min(
+                    allocations_normalized[data_assets == asset] * ij_pct * previous_state['rewards_pool_df_active'], #pct_j*pct_ij*pool
+                    ij[agent][asset] * params['datafarming_yield_cap'], #yield cap
+                    previous_state['agents_data_asset'][asset].dataconsumevolume_rewardsperiod #dcv cap
+                )
+        #something in the min() function is causing the error... just overwrite nan for now
+        if np.isnan(i_rewards_amt):
+            i_rewards[agent] = 0
+        else:
+            i_rewards[agent] = i_rewards_amt
+    
+    # calculate surplus returned to treasury
+    surplus_amt = (previous_state['rewards_pool_df_active'] - sum(i_rewards.values()))
+    return {'oceanholder_active_rewards': i_rewards, 'treasury_delta_ocean': surplus_amt, 'active_rewards_delta_ocean': -(surplus_amt + sum(i_rewards.values()))}
+
+def p_passive_and_fee_rewards(params, substep, state_history, previous_state):
+    # latest rewards matrix
+    ij = previous_state['rewards_matrix']
+    # passive & fee rewards are based on veOcean balance held by each agent as % of total from that period
+    # get sum from the reward period of veAllocation for each agent
+    i_tot_ve = {}
+    for agent in ij.keys():
+        i_tot_ve[agent] = 0
+        for asset in ij[agent].keys():
+            i_tot_ve[agent] += ij[agent][asset]
+    tot_ve = 0
+    for agent in ij.keys():
+        for asset in ij[agent].keys():
+            tot_ve += ij[agent][asset]
+    oceanholder_passive_rewards = {}
+    oceanholder_fee_rewards = {}
+    for agent in previous_state['agents_oceanholder'].keys():
+        if tot_ve == 0:
+            oceanholder_passive_rewards[agent] = 0
+            oceanholder_fee_rewards[agent] = 0
+        else:    
+            i_pct = i_tot_ve[agent] / tot_ve
+            oceanholder_passive_rewards[agent] = i_pct * previous_state['rewards_pool_df_passive'] # amt for passive rewards
+            oceanholder_fee_rewards[agent] = i_pct * previous_state['rewards_pool_fees'] # amt for fees
+    # If no ve tokens are staked, rewards will be 0 and surplus is sent back to treasury
+    if sum(oceanholder_passive_rewards.values()) == 0:
+        surplus_amt_passive = previous_state['rewards_pool_df_passive']
+    else:
+        surplus_amt_passive = 0
+    
+    if sum(oceanholder_fee_rewards.values()) == 0:
+        surplus_amt_fees = previous_state['rewards_pool_fees']
+    else:
+        surplus_amt_fees = 0
+    return {'oceanholder_passive_rewards': oceanholder_passive_rewards, 'oceanholder_fee_rewards': oceanholder_fee_rewards, 'rewards_pool_df_passive_delta_ocean': -(surplus_amt_passive + sum(oceanholder_passive_rewards.values())), 'rewards_pool_fees_delta_ocean': -(surplus_amt_fees + sum(oceanholder_fee_rewards.values())), 'treasury_delta_ocean': (surplus_amt_passive + surplus_amt_fees)}
+
+
+def p_data_asset_consumed(params, substep, state_history, previous_state):
+    # calculate the dataconsumed for each data asset
+    behavior_data = b.behavior_consume_data(previous_state['timestep'], previous_state['agents_data_asset'])
+    return {'data_asset_consumed': behavior_data}
