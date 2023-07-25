@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import *
 import uuid
+import numpy as np
 
 @dataclass
 class veaccount:
@@ -9,68 +10,42 @@ class veaccount:
     lockduration: int
     lockperiodstart: int
     locked: float
-    unlocked: float
-    withdrawn: float
     vebalance: float
-
-@dataclass
-class oceanholder:
-    id: uuid.UUID
-    oceanbalance: float
-    veaccounts: Dict[uuid.UUID, veaccount]
-    votepercent: Dict[uuid.UUID, float]
 
 @dataclass
 class dataasset:
     id: uuid.UUID
     dataconsumevolume: float
-    dataconsumevolume_rewardsperiod: float
-    veallocation: float
 
-
-def initialize_agent_oceanholder(n_oceanholders) -> Dict[str, oceanholder]:
-    agents_oceanholder = {}
-    for i in range(n_oceanholders):        
-        agent = oceanholder(
-                            id=uuid.uuid4(),
-                            oceanbalance=1e5,
-                            veaccounts={},
-                            votepercent={}
-                            )
-        agents_oceanholder[str(agent.id)] = agent
-    return agents_oceanholder
-
-
-def create_new_agent_veaccount(amount, duration, timestamp) -> veaccount:
+def create_new_agent_veaccount(amount, duration, timestamp, max_duration) -> veaccount:
     newagent = veaccount(
                         id=uuid.uuid4(),
                         initialocean=amount,
                         lockduration=duration,
                         lockperiodstart=timestamp,
                         locked=amount,
-                        unlocked=0.0,
-                        withdrawn=0.0,
-                        vebalance=0.0)
+                        vebalance=amount*(duration - (timestamp - timestamp))/(max_duration))
     return newagent
 
 
-def initialize_agent_data_asset(n_data_assets) -> Dict[str, dataasset]:
+def initialize_agent_data_asset(n_data_assets, initial_DCV) -> Dict[str, dataasset]:
     agents_data_asset = {}
     for i in range(n_data_assets):
         agent = dataasset(
                           id=uuid.uuid4(),
-                          dataconsumevolume=0.0,
-                          dataconsumevolume_rewardsperiod=0.0,
-                          veallocation=0.0
+                          dataconsumevolume=0.0
                          )
         agents_data_asset[str(agent.id)] = agent
+
+    dcv = initial_DCV
+    assets_consumed = {}
+    for asset in agents_data_asset.keys():
+        assets_consumed[asset] = np.random.uniform(0.0,1.0)
+    total_consumed = sum(assets_consumed.values())
+    for asset in agents_data_asset.keys():
+        assets_consumed[asset] = assets_consumed[asset]/total_consumed*dcv
+
+    for asset in agents_data_asset.keys():
+        agents_data_asset[asset].dataconsumevolume = assets_consumed[asset]
+
     return agents_data_asset
-
-
-def initialize_rewards_matrix(holder_agents, data_assets) -> Dict[str, Dict[str, float]]:
-    rewards_matrix = {}
-    for agent in holder_agents.keys():
-        rewards_matrix[agent] = {}
-        for asset in data_assets.keys():
-            rewards_matrix[agent][asset] = 0.0
-    return rewards_matrix
