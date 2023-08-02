@@ -31,11 +31,33 @@ def p_lock_2(params, substep, state_history, previous_state):
 
     ocean_locked, lock_duration = b.behavior_lock_2(previous_state['distribution_schedule'][previous_state['timestep']][0] * (1 - params['datafarming_active_share'])
                                                   , previous_state['rewards_pool_fees']
-                                                  , params['min_accepted_weekly_yield']
+                                                  , params['min_accepted_yield']['weekly_yield']
                                                   , previous_state['ocean_unlocked_supply']
                                                   , locked_supply
                                                   , params['vecontract_minlock']
-                                                  , params['vecontract_maxlock'])
+                                                  , params['vecontract_maxlock']
+                                                  , params['lock_supply_pct_cap'])
+    
+    new_ve_acct = a.create_new_agent_veaccount(ocean_locked, lock_duration, previous_state['timestep']+1, params['vecontract_maxlock'])
+    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': new_ve_acct}
+
+def p_lock_3(params, substep, state_history, previous_state):
+    locked_supply = 0
+    for acct in previous_state['ve_accounts'].keys():
+        locked_supply += previous_state['ve_accounts'][acct].locked
+
+    passive_rewards = previous_state['distribution_schedule'][previous_state['timestep']][0] * (1 - params['datafarming_active_share'])
+    active_rewards = previous_state['distribution_schedule'][previous_state['timestep']][0] * params['datafarming_active_share']
+
+    ocean_locked, lock_duration = b.behavior_lock_3(passive_rewards
+                                                  , previous_state['rewards_pool_fees']
+                                                  , active_rewards
+                                                  , params['min_accepted_yield']['weekly_yield']
+                                                  , previous_state['ocean_unlocked_supply']
+                                                  , locked_supply
+                                                  , params['vecontract_minlock']
+                                                  , params['vecontract_maxlock']
+                                                  , params['lock_supply_pct_cap'])
     
     new_ve_acct = a.create_new_agent_veaccount(ocean_locked, lock_duration, previous_state['timestep']+1, params['vecontract_maxlock'])
     return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': new_ve_acct}
@@ -89,7 +111,7 @@ def p_vote_3(params, substep, state_history, previous_state):
     eligible_rewards_passive = previous_state['distribution_schedule'][previous_state['timestep']][0] * (1 - params['datafarming_active_share'])
     eligible_rewards_active = previous_state['distribution_schedule'][previous_state['timestep']][0] * params['datafarming_active_share']
     eligible_rewards_fees = previous_state['rewards_pool_fees']
-    min_weekly_yield = params['min_accepted_weekly_yield']
+    min_weekly_yield = params['min_accepted_yield']['weekly_yield']
     df_yield_cap = params['datafarming_weekly_yield_cap']
     active_pct = b.behavior_vote_active_2(previous_state['timestep']
                                            , locked_supply
@@ -117,7 +139,7 @@ def p_vote_4(params, substep, state_history, previous_state):
     eligible_rewards_passive = previous_state['distribution_schedule'][previous_state['timestep']][0] * (1 - params['datafarming_active_share'])
     eligible_rewards_active = previous_state['distribution_schedule'][previous_state['timestep']][0] * params['datafarming_active_share']
     eligible_rewards_fees = previous_state['rewards_pool_fees']
-    min_weekly_yield = params['min_accepted_weekly_yield']
+    min_weekly_yield = params['min_accepted_yield']['weekly_yield']
     df_yield_cap = params['datafarming_weekly_yield_cap']
 
     active_pct = b.behavior_vote_active_2(previous_state['timestep']
@@ -126,6 +148,29 @@ def p_vote_4(params, substep, state_history, previous_state):
                                            , eligible_rewards_active
                                            , eligible_rewards_fees
                                            , min_weekly_yield
+                                           , tot_dcv
+                                           , df_yield_cap)
+    behavior_data = b.behavior_vote_strategy_2(previous_state['run']
+                                               , active_pct
+                                               , previous_state['data_assets']
+                                               , params['datafarming_max_assets_n'])
+    return {'set_votes': behavior_data}
+
+def p_vote_5(params, substep, state_history, previous_state):
+    locked_supply = 0
+    for acct in previous_state['ve_accounts'].keys():
+        locked_supply += previous_state['ve_accounts'][acct].locked
+
+    tot_dcv = 0
+    for asset in previous_state['data_assets'].keys():
+        tot_dcv += previous_state['data_assets'][asset].dataconsumevolume
+
+    eligible_rewards_active = previous_state['distribution_schedule'][previous_state['timestep']][0] * params['datafarming_active_share']
+    df_yield_cap = params['datafarming_weekly_yield_cap']
+
+    active_pct = b.behavior_vote_active_3(previous_state['timestep']
+                                           , locked_supply
+                                           , eligible_rewards_active
                                            , tot_dcv
                                            , df_yield_cap)
     behavior_data = b.behavior_vote_strategy_2(previous_state['run']

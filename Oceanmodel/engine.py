@@ -9,6 +9,8 @@ from Oceanmodel.behavior_ve import *
 
 import pandas as pd
 import numpy as np
+from copy import deepcopy
+from itertools import product
 
 # cadCAD configuration module
 from cadCAD.configuration.utils import config_sim
@@ -36,7 +38,8 @@ initial_values = {
     'unlocked_supply': 434026836,
     'initial_DCV': 50000, # CHANGE IT IN behavior_ve.py too!!!
     'initial_locked_pct': 0.03, # CHANGE IT IN behavior_ve.py too!!!
-    'min_accepted_apy': 0.1
+    'min_accepted_apy_low': 0.05,
+    'min_accepted_apy_high': 0.20
 }
 
 
@@ -56,6 +59,8 @@ initial_state = {
     'distribution_schedule': np.array(pd.read_csv('distribution_schedule.txt', sep='\t', dtype=int)), # 482124587
 }
 
+yield_list = list(map(lambda x: {'weekly_yield': (1+x)**(1/52)-1, 'apy': x}, np.arange(initial_values['min_accepted_apy_low'],initial_values['min_accepted_apy_high'],(initial_values['min_accepted_apy_high'] - initial_values['min_accepted_apy_low'])/5)))
+
 system_params = {
     'vecontract_minlock': [1],
     'vecontract_maxlock': [4*52],
@@ -67,132 +72,9 @@ system_params = {
     'protocol_transaction_fee': [0.001],
     'revenue_burn_pct': [0.5],
     'dcv_growth_rate': [0.1],
-    'min_accepted_weekly_yield': [(initial_values['min_accepted_apy'] + 1)**(1/52)-1], #annual! not weekly. weekly = (APY + 1)^(1/52)-1
-    'min_accepted_apy': [initial_values['min_accepted_apy']],
-    'lock_supply_pct_cap': [0.85],
+    'min_accepted_yield': yield_list,
+    'lock_supply_pct_cap': [0.85]
 }
-
-#partial_state_update_blocks_behaviors_A = [
-#    { # lock/vote/consume behaviors & allocate to rewards pools
-#        'policies': {
-#            'p_lock': p_lock_a,
-#            'p_vote': p_vote,
-#            'p_consume_data': p_data_asset_consumed,
-#        },
-#        'variables':{
-#            've_accounts': s_new_ve_accounts,
-#            'votes': s_votes,
-#            'data_assets': s_data_asset_consumed,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#            'rewards_pool_fees': s_protocol_fees_pool
-#        }
-#    },
-#    { # distribute rewards
-#        'policies': {
-#            'p_active_rewards': p_active_rewards,
-#            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
-#        },
-#        'variables':{
-#            'rewards_distributed_df_active': s_rewards_active,
-#            'rewards_distributed_df_passive': s_rewards_passive,
-#            'rewards_distributed_fees': s_rewards_fees,
-#            'ocean_treasury': s_treasury_ocean,
-#            'rewards_pool_fees': s_protocol_fees_pool,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    },
-#    { # rebalance ve accounts
-#        'policies': {
-#            'p_rebalance': p_rebalance,
-#        },
-#        'variables':{
-#            've_accounts': s_rebalance_ve_accounts,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    }
-#]
-#
-#partial_state_update_blocks_behaviors_B = [
-#    { # lock/vote/consume behaviors & allocate to rewards pools
-#        'policies': {
-#            'p_lock': p_lock_b,
-#            'p_vote': p_vote,
-#            'p_consume_data': p_data_asset_consumed,
-#        },
-#        'variables':{
-#            've_accounts': s_new_ve_accounts,
-#            'votes': s_votes,
-#            'data_assets': s_data_asset_consumed,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#            'rewards_pool_fees': s_protocol_fees_pool
-#        }
-#    },
-#    { # distribute rewards
-#        'policies': {
-#            'p_active_rewards': p_active_rewards,
-#            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
-#        },
-#        'variables':{
-#            'rewards_distributed_df_active': s_rewards_active,
-#            'rewards_distributed_df_passive': s_rewards_passive,
-#            'rewards_distributed_fees': s_rewards_fees,
-#            'ocean_treasury': s_treasury_ocean,
-#            'rewards_pool_fees': s_protocol_fees_pool,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    },
-#    { # rebalance ve accounts
-#        'policies': {
-#            'p_rebalance': p_rebalance,
-#        },
-#        'variables':{
-#            've_accounts': s_rebalance_ve_accounts,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    }
-#]
-#
-#
-#partial_state_update_blocks_behaviors_C = [
-#    { # lock/vote/consume behaviors & allocate to rewards pools
-#        'policies': {
-#            'p_lock': p_lock_c,
-#            'p_vote': p_vote_c,
-#            'p_consume_data': p_data_asset_consumed,
-#        },
-#        'variables':{
-#            've_accounts': s_new_ve_accounts,
-#            'votes': s_votes,
-#            'data_assets': s_data_asset_consumed,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#            'rewards_pool_fees': s_protocol_fees_pool
-#        }
-#    },
-#    { # distribute rewards
-#        'policies': {
-#            'p_active_rewards': p_active_rewards_c,
-#            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
-#        },
-#        'variables':{
-#            'rewards_distributed_df_active': s_rewards_active,
-#            'rewards_distributed_df_passive': s_rewards_passive,
-#            'rewards_distributed_fees': s_rewards_fees,
-#            'ocean_treasury': s_treasury_ocean,
-#            'rewards_pool_fees': s_protocol_fees_pool,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    },
-#    { # rebalance ve accounts
-#        'policies': {
-#            'p_rebalance': p_rebalance,
-#        },
-#        'variables':{
-#            've_accounts': s_rebalance_ve_accounts,
-#            'ocean_unlocked_supply': s_ocean_circ,
-#        }
-#    }
-#]
-
 
 ## generate behaviors:
 ## lock behaviors
@@ -210,10 +92,33 @@ system_params = {
 #                                                , initial_assets
 #                                                , initial_values['initial_DCV'])
 
+def create_par_sweep(sweep_dict: dict) -> dict:
+    """This function takes a dictionary where key is parameter name
+    and value is a list of all possible values for that parameter. It
+    converts this into a dictionary with the same keys but with values
+    that are the cartesian product of all the lists.
 
-def generate_psubs() -> List[List[Dict[str, any]]]:
+    Args:
+        sweep_dict (dict): A dictionary of params and values to sweep over
 
-    locking = [p_lock_1, p_lock_2] #L1 with V1/2, L2 with V3/4
+    Returns:
+        dict: A dictionary of cartesian product params
+    """
+    # Copy sweep_dict to avoid overwriting
+    sweep_dict = deepcopy(sweep_dict)
+
+    # Get the cartesian product
+    sweeps = list(product(*sweep_dict.values()))
+
+    # Assign values
+    for kk, varname in enumerate(sweep_dict.keys()):
+        sweep_dict[varname] = [x[kk] for x in sweeps]
+
+    return sweep_dict
+
+def generate_psubs_all() -> List[List[Dict[str, any]]]:
+
+    locking = [p_lock_1, p_lock_2, p_lock_3] #L1 with V1/2, L2 with V3/4
     consuming = [p_data_asset_consumed_1, p_data_asset_consumed_2, p_data_asset_consumed_3]
 
     psubs = []
@@ -222,6 +127,122 @@ def generate_psubs() -> List[List[Dict[str, any]]]:
             voting = [p_vote_1, p_vote_2]
         else:
             voting = [p_vote_3, p_vote_4]
+        for v in voting:
+            for c in consuming:
+                psubs.append([
+                    { # lock/consume behaviors & allocate to rewards pools
+                        'policies': {
+                            'p_lock': l,
+                            'p_consume': c
+                        },
+                        'variables':{
+                            've_accounts': s_new_ve_accounts,
+                            'data_assets': s_data_asset_consumed,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                            'rewards_pool_fees': s_protocol_fees_pool
+                        }
+                    },
+                    { # vote behavior
+                        'policies': {
+                            'p_vote': v
+                        },
+                        'variables':{
+                            'votes': s_votes
+                        }
+                    },
+                    { # distribute rewards
+                        'policies': {
+                            'p_active_rewards': p_active_rewards,
+                            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
+                        },
+                        'variables':{
+                            'rewards_distributed_df_active': s_rewards_active,
+                            'rewards_distributed_df_passive': s_rewards_passive,
+                            'rewards_distributed_fees': s_rewards_fees,
+                            'ocean_treasury': s_treasury_ocean,
+                            'rewards_pool_fees': s_protocol_fees_pool,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    },
+                    { # rebalance ve accounts
+                        'policies': {
+                            'p_rebalance': p_rebalance,
+                        },
+                        'variables':{
+                            've_accounts': s_rebalance_ve_accounts,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    }
+                ])
+                print(f"psub assumptions: Locking: {l.__name__}, Voting: {v.__name__}, Consumption: {c.__name__}")
+    return psubs
+
+def generate_psubs_LazyLocking_PerfectActivationVotingVolume() -> List[List[Dict[str, any]]]:
+
+    locking = [p_lock_2]
+    voting = [p_vote_5]
+    consuming = [p_data_asset_consumed_1, p_data_asset_consumed_2, p_data_asset_consumed_3]
+
+    psubs = []
+    for l in locking:
+        for v in voting:
+            for c in consuming:
+                psubs.append([
+                    { # lock/consume behaviors & allocate to rewards pools
+                        'policies': {
+                            'p_lock': l,
+                            'p_consume': c
+                        },
+                        'variables':{
+                            've_accounts': s_new_ve_accounts,
+                            'data_assets': s_data_asset_consumed,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                            'rewards_pool_fees': s_protocol_fees_pool
+                        }
+                    },
+                    { # vote behavior
+                        'policies': {
+                            'p_vote': v
+                        },
+                        'variables':{
+                            'votes': s_votes
+                        }
+                    },
+                    { # distribute rewards
+                        'policies': {
+                            'p_active_rewards': p_active_rewards,
+                            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
+                        },
+                        'variables':{
+                            'rewards_distributed_df_active': s_rewards_active,
+                            'rewards_distributed_df_passive': s_rewards_passive,
+                            'rewards_distributed_fees': s_rewards_fees,
+                            'ocean_treasury': s_treasury_ocean,
+                            'rewards_pool_fees': s_protocol_fees_pool,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    },
+                    { # rebalance ve accounts
+                        'policies': {
+                            'p_rebalance': p_rebalance,
+                        },
+                        'variables':{
+                            've_accounts': s_rebalance_ve_accounts,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    }
+                ])
+                print(f"psub assumptions: Locking: {l.__name__}, Voting: {v.__name__}, Consumption: {c.__name__}")
+    return psubs
+
+def generate_psubs_SmartLocking_PerfectActivationVotingVolume() -> List[List[Dict[str, any]]]:
+
+    locking = [p_lock_3]
+    voting = [p_vote_5]
+    consuming = [p_data_asset_consumed_1, p_data_asset_consumed_2, p_data_asset_consumed_3]
+
+    psubs = []
+    for l in locking:
         for v in voting:
             for c in consuming:
                 psubs.append([

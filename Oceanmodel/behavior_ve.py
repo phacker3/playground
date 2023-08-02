@@ -6,7 +6,7 @@ import scipy
 
 def behavior_lock_1(run, timestep, unlocked_supply, locked_supply, minlock, maxlock, lock_supply_cap, init_lock_pct = 0.03):
     '''
-    logic
+    logic - Linear Locked Supply Growth
     - Amount: Linear function initialized at X% locked supply growing to Y% ceiling after Z years
     - Duration: uniform random between 1 week and 4 years
     '''
@@ -14,30 +14,61 @@ def behavior_lock_1(run, timestep, unlocked_supply, locked_supply, minlock, maxl
     lock_duration = np.random.randint(minlock, maxlock)    
     return lock_amount, lock_duration
         
-def behavior_lock_2(passive_rewards, fees_rewards, min_accepted_weekly_yield, unlocked_supply, locked_supply, minlock, maxlock):
+def behavior_lock_2(passive_rewards, fees_rewards, min_accepted_weekly_yield, unlocked_supply, locked_supply, minlock, maxlock, lock_supply_cap):
     '''
-    logic
+    logic - "Lazy APY Targeting"
     - Amount: APY Targeting. If Passive APY > minimum justifiable APY, lock the amount that would bring Passive APY=minimum justifiable APY. If not, don't lock anything and let the locked amount decay.
     - Duration: uniform random duration of lock (1 week to 4 years)
 
     if passive rewards / some amt between 0 and circulating supply > min_apy:
     '''
     if locked_supply == 0: # if nothing is locked, lock the amt that would bring passive_weekly_yield to min_accepted_weekly_yield
-        lock_amount = min((passive_rewards + fees_rewards) / (min_accepted_weekly_yield), unlocked_supply)
+        lock_amount = min((passive_rewards + fees_rewards) / (min_accepted_weekly_yield), unlocked_supply * lock_supply_cap)
     else:
         weekly_yield = (passive_rewards + fees_rewards)/locked_supply
         if weekly_yield < min_accepted_weekly_yield: #let locked amount decay which would increase weekly yield
             lock_amount = 0
         else: #lock the amt that brings weekly yield to min_accepted_weekly_yield
-            lock_amount = min((passive_rewards + fees_rewards) / (min_accepted_weekly_yield), (unlocked_supply + locked_supply)) - locked_supply
+            lock_amount = min((passive_rewards + fees_rewards) / (min_accepted_weekly_yield), (unlocked_supply + locked_supply) * lock_supply_cap) - locked_supply
+    lock_duration = np.random.randint(minlock, maxlock)
+    return lock_amount, lock_duration
+
+def behavior_lock_3(passive_rewards, fees_rewards, active_rewards, min_accepted_weekly_yield, unlocked_supply, locked_supply, minlock, maxlock, lock_supply_cap):
+    '''
+    logic - "Smart APY Targeting"
+    - idea: rather than locked_supply decays to increase passive APY, we consider the potential incremental APY from activating, and potentialy lock more
+            if weekly_yield < min_accepted_weekly_yield BUT the previous week's agg_APY was > min_accepted_weekly_yield, then we can actually lock more which would bring agg_weekly_yield in line with min_accepted_weekly_yield
+            locked_supply could still decay, but it's to increase agg_APY, not passive_APY
+    - Amount: 
+    - Duration: x
+    '''
+    # lock the amt that would bring agg_weekly_yield to min_accepted_weekly_yield
+    # maximize locked_supply s.t. agg_weekly_yield >= min_accepted_weekly_yield, where
+    # agg_weekly_yield = passive_weekly_yield + passive_fee_yield + active_weekly_yield*active_pct
+    # amt = min(eligible_active_rewards / yield_cap, tot_dcv * 0.01 / yield_cap, locked_supply)
+    # active_pct = amt / locked_supply
+    # active_weekly_yield = min(eligible_active_rewards, tot_dcv*0.01, locked_supply*125%) / amt
+    if locked_supply == 0:
+        lock_amount = min((passive_rewards + fees_rewards + active_rewards) / min_accepted_weekly_yield, unlocked_supply * lock_supply_cap)
+    else:
+        agg_weekly_yield = (passive_rewards + fees_rewards + active_rewards)/locked_supply
+        if agg_weekly_yield < min_accepted_weekly_yield:
+            lock_amount = 0
+        else:
+            lock_amount = min((passive_rewards + fees_rewards + active_rewards) / min_accepted_weekly_yield, (locked_supply + unlocked_supply) * lock_supply_cap) - locked_supply
     lock_duration = np.random.randint(minlock, maxlock)
     return lock_amount, lock_duration
 
 def behavior_vote_active_1():
+    # logic: uniform random between
     pct = np.random.uniform(0.0,1.0)
     return pct
 
 def behavior_vote_active_2(timestep, locked_supply, eligible_passive_rewards, eligible_active_rewards, eligible_fee_rewards, min_accepted_weekly_yield, tot_dcv, yield_cap):
+    '''
+    logic: "lazy APY targeting"
+    - only activate as much as is needed to bring the weekly yield to the minimum acceptable yield when passive APY dips below the minimum acceptable yield
+    '''
     if locked_supply == 0:
         pct = 0
     else:
@@ -46,8 +77,6 @@ def behavior_vote_active_2(timestep, locked_supply, eligible_passive_rewards, el
         dcv_ceiling = tot_dcv * 0.01
         distro_ceiling = eligible_active_rewards
         if passive_weekly_yield+fees_weekly_yield < min_accepted_weekly_yield:
-
-            #print(f'Optimizing! timestep: {timestep}, p_apy: {passive_apy}, f_apy: {fees_apy}, locked_supply: {locked_supply}, p_rewards: {p_rewards}, f_rewards: {f_rewards}')
             def cost(active_supply):
                 return -active_supply
             def constraint1(active_supply, m = min_accepted_weekly_yield, p = passive_weekly_yield, f = fees_weekly_yield, c = yield_cap, l = locked_supply): #ineq
@@ -70,8 +99,20 @@ def behavior_vote_active_2(timestep, locked_supply, eligible_passive_rewards, el
 
             pct = active_supply / locked_supply
         else:
-            #print(f'Did not optimize... timestep: {timestep}, p_apy: {passive_apy}, f_apy: {fees_apy}, locked_supply: {locked_supply}, p_rewards: {p_rewards}, f_rewards: {f_rewards}')
             pct = 0
+    return pct
+
+def behavior_vote_active_3(timestep, locked_supply, eligible_active_rewards, tot_dcv, yield_cap):
+    '''
+    logic: "perfect activation"
+    - activate as much as is needed to maximize rewards & reach the highest APY (assuming perfect vote allocation & dcv distribution)
+    '''
+    if locked_supply == 0:
+        pct = 0
+    else:
+        # activate as much is needed to (1) extract all eligible rewards @ yield_cap, or (2) extract all eligble rewards after dcv ceiling @ yield_cap, or (3) active entire locked supply
+        amt = min(eligible_active_rewards / yield_cap, tot_dcv * 0.01 / yield_cap, locked_supply)
+        pct = amt / locked_supply
     return pct
 
 def behavior_vote_strategy_1(run, active_pct, assets: dict) -> Dict[uuid.UUID, float]:
@@ -90,8 +131,7 @@ def behavior_vote_strategy_1(run, active_pct, assets: dict) -> Dict[uuid.UUID, f
 
 def behavior_vote_strategy_2(run, active_pct, assets: dict, max_assets_ranked) -> Dict[uuid.UUID, float]:
     '''
-    logic:
-    - perfect allocation
+    logic: "perfect allocation"
     - active veOcean is allocated to the ranked assets according to the same logrithmic distribution that is used in the rewards function.
     '''
     data_assets = np.array([])
@@ -144,8 +184,8 @@ def behavior_consume_distr_1(assets, dcv):
 
 def behavior_consume_distr_2(assets, dcv):
     '''
-    logic:
-    - perfect allocation. DCV is allocated to the ranked assets according to the same logrithmic distribution that is used in the rewards function.
+    logic: "perfect distribution"
+    - DCV is allocated to the ranked assets according to the same logrithmic distribution that is used in the rewards function.
     '''
     ranks = np.arange(1,101,1)
     allocations = np.zeros_like(ranks)
