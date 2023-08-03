@@ -5,7 +5,8 @@ def s_ocean_circ(params, substep, state_history, previous_state, policy_input):
 
 def s_new_ve_accounts(params, substep, state_history, previous_state, policy_input):
     ve_accounts = previous_state['ve_accounts']
-    ve_accounts[policy_input['initialized_veaccount'].id] = policy_input['initialized_veaccount']
+    for i in range(len(policy_input['initialized_veaccount'])):
+        ve_accounts[policy_input['initialized_veaccount'][i].id] = policy_input['initialized_veaccount'][i]
     return 've_accounts', ve_accounts
     
 def s_votes(params, substep, state_history, previous_state, policy_input):
@@ -45,3 +46,10 @@ def s_data_asset_consumed(params, substep, state_history, previous_state, policy
     for asset in data_assets.keys():
         data_assets[asset].dataconsumevolume = policy_input['data_asset_consumed'][asset]
     return 'data_assets', data_assets
+
+#def s_data_asset_consumed_stoch(params, substep, state_history, previous_state, policy_input):
+#    data_assets = previous_state['data_assets']
+#    # update total DCV
+#    for asset in policy_input['data_asset_consumed'].keys():
+#        data_assets[asset].dataconsumevolume += policy_input['data_asset_consumed'][asset]
+#    return 'data_assets', data_assets

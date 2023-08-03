@@ -59,6 +59,23 @@ def behavior_lock_3(passive_rewards, fees_rewards, active_rewards, min_accepted_
     lock_duration = np.random.randint(minlock, maxlock)
     return lock_amount, lock_duration
 
+def behavior_lock_stoch(unlocked_supply, weekly_lock_probability, minlock_amt, maxlock_amt, minlock_dur, maxlock_dur):
+    '''
+    logic - "stochastic"
+    - idea: daily probability of locking/creating a veAccount is X% (so 7 accts are possible per week)
+    - Amount: uniform random between 10e3 and 5e6
+    - Duration: uniform random 1 week to 4 years
+    '''
+    lock_amount = np.array([])
+    lock_duration = np.array([])
+
+    signal = np.random.uniform(size=(7))
+    for i in range(len(signal)):
+        if signal[i] < weekly_lock_probability:
+            lock_amount = np.append(lock_amount, min(np.random.uniform(minlock_amt, maxlock_amt), unlocked_supply - sum(lock_amount)))
+            lock_duration = np.append(lock_duration, np.random.randint(minlock_dur, maxlock_dur))
+    return lock_amount, lock_duration
+
 def behavior_vote_active_1():
     # logic: uniform random between
     pct = np.random.uniform(0.0,1.0)
@@ -115,10 +132,33 @@ def behavior_vote_active_3(timestep, locked_supply, eligible_active_rewards, tot
         pct = amt / locked_supply
     return pct
 
+def behavior_vote_active_stoch(accounts, weekly_vote_success_prob):
+    '''
+    logic: "stochastic"
+    - weekly probability that a ve Account activates it's veOcean balance (i.e votes successfully) = X%
+    - depending on which accts are activated, pct = veOcean activated / total veOcean
+    '''
+    tot_ve_bal = 0
+    for acct in accounts:
+        tot_ve_bal += accounts[acct].vebalance
+    
+    if tot_ve_bal == 0:
+        pct = 0
+    else:
+        signal = np.random.uniform(size=len(accounts))
+        active_ve_bal = 0
+        i = 0
+        for acct in accounts:
+            if signal[i] < weekly_vote_success_prob:
+                active_ve_bal += accounts[acct].vebalance
+            i += 1
+        pct = active_ve_bal / tot_ve_bal
+    return pct
+
+
 def behavior_vote_strategy_1(run, active_pct, assets: dict) -> Dict[uuid.UUID, float]:
     '''
-    logic:
-    - uniform random between 0-100: % of veocean successfully allocated to a ranked data assets
+    logic: "uniform random"
     - uniform random between 0-100 for each ranked asset, then normalize and apply to active_pct
     '''
     new_votes = {}
@@ -199,5 +239,24 @@ def behavior_consume_distr_2(assets, dcv):
     i=0
     for asset in assets.keys():
             assets_consumed[asset] = allocations_normalized[i] * dcv
+            i += 1
+    return assets_consumed
+
+
+def behavior_consume_stoch(timestep, assets, consume_probability, consume_multiple, min_dcv_amt, max_dcv_amt):
+    '''
+    logic: "stochastic"
+    - weekly probability that a ranked asset is consumed = X% (so each asset has a chance to be consumed each week)
+    - amount consumed = uniform random between 100 to 1000
+    '''
+    time_multiple = timestep
+    signal = np.random.uniform(size=(len(assets)))
+    assets_consumed = {}
+    i=0
+    for asset in assets.keys():
+        if signal[i] < consume_probability:
+            dcv = np.random.uniform(min_dcv_amt * time_multiple * consume_multiple
+                                    , max_dcv_amt * time_multiple * consume_multiple)
+            assets_consumed[asset] = dcv
             i += 1
     return assets_consumed
