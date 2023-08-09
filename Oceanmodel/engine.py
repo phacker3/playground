@@ -59,14 +59,22 @@ initial_state = {
     'distribution_schedule': np.array(pd.read_csv('distribution_schedule.txt', sep='\t', dtype=int)), # 482124587
 }
 
-#yield_list = list(map(lambda x: {'weekly_yield': (1+x)**(1/52)-1, 'apy': x}, np.arange(initial_values['min_accepted_apy_low'],initial_values['min_accepted_apy_high'],(initial_values['min_accepted_apy_high'] - initial_values['min_accepted_apy_low'])/5)))
-weekly_lock_prob_list = list(np.arange(0.30, 0.90, (0.98-0.35)/9))
-weekly_vote_success_prob_list = list(np.arange(0.3, 0.7, (0.9-0.5)/9))
-weekly_consume_multiple_list = [0.8, 1.0, 1.2, 1.4] # for low/med/high dcv scenarios
+
+yield_list = list(map(lambda x: {'weekly_yield': (1+x)**(1/52)-1, 'apy': x}, np.arange(initial_values['min_accepted_apy_low'],initial_values['min_accepted_apy_high'],(initial_values['min_accepted_apy_high'] - initial_values['min_accepted_apy_low'])/5)))
+weekly_lock_prob_list = list(np.arange(0.30, 0.81, 0.25))
+weekly_vote_success_prob_list = list(np.arange(0.1, 0.61, 0.25))
+weekly_consume_multiple_list = [1, 1.4] # for low/med/high dcv scenarios
+lock_dur_list = [
+    {'min_lock': 1, 'max_lock': 4*52}
+    , {'min_lock': 1, 'max_lock': 2*52}
+    , {'min_lock': 1*52, 'max_lock': 3*52}
+    , {'min_lock': 2*52, 'max_lock': 4*52}
+]
 
 system_params = {
     'minlock_amt': [10e3],
     'maxlock_amt': [5e6],
+    'lock_dur': lock_dur_list,
     'minlock_dur': [1],
     'maxlock_dur': [4*52],
     'min_weekly_dcv_amt': [100],
@@ -83,7 +91,7 @@ system_params = {
     'protocol_transaction_fee': [0.001],
     'revenue_burn_pct': [0.5],
     'dcv_growth_rate': [0.1],
-    'min_accepted_yield': [0.1],#yield_list,
+    'min_accepted_yield': [0.0],#yield_list,
     'lock_supply_pct_cap': [0.85]
 }
 
@@ -138,6 +146,64 @@ def generate_psubs_all() -> List[List[Dict[str, any]]]:
             voting = [p_vote_1, p_vote_2]
         else:
             voting = [p_vote_3, p_vote_4]
+        for v in voting:
+            for c in consuming:
+                psubs.append([
+                    { # lock/consume behaviors & allocate to rewards pools
+                        'policies': {
+                            'p_lock': l,
+                            'p_consume': c
+                        },
+                        'variables':{
+                            've_accounts': s_new_ve_accounts,
+                            'data_assets': s_data_asset_consumed,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                            'rewards_pool_fees': s_protocol_fees_pool
+                        }
+                    },
+                    { # vote behavior
+                        'policies': {
+                            'p_vote': v
+                        },
+                        'variables':{
+                            'votes': s_votes
+                        }
+                    },
+                    { # distribute rewards
+                        'policies': {
+                            'p_active_rewards': p_active_rewards,
+                            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
+                        },
+                        'variables':{
+                            'rewards_distributed_df_active': s_rewards_active,
+                            'rewards_distributed_df_passive': s_rewards_passive,
+                            'rewards_distributed_fees': s_rewards_fees,
+                            'ocean_treasury': s_treasury_ocean,
+                            'rewards_pool_fees': s_protocol_fees_pool,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    },
+                    { # rebalance ve accounts
+                        'policies': {
+                            'p_rebalance': p_rebalance,
+                        },
+                        'variables':{
+                            've_accounts': s_rebalance_ve_accounts,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    }
+                ])
+                print(f"psub assumptions: Locking: {l.__name__}, Voting: {v.__name__}, Consumption: {c.__name__}")
+    return psubs
+
+def generate_psubs_LinearLocking_PerfectActivationVotingVolume() -> List[List[Dict[str, any]]]:
+
+    locking = [p_lock_1]
+    voting = [p_vote_5]
+    consuming = [p_data_asset_consumed_1, p_data_asset_consumed_2, p_data_asset_consumed_3]
+
+    psubs = []
+    for l in locking:
         for v in voting:
             for c in consuming:
                 psubs.append([
@@ -309,6 +375,64 @@ def generate_psubs_stoch() -> List[List[Dict[str, any]]]:
     locking = [p_lock_stoch]
     voting = [p_vote_stoch]
     consuming = [p_data_asset_consumed_stoch]
+
+    psubs = []
+    for l in locking:
+        for v in voting:
+            for c in consuming:
+                psubs.append([
+                    { # lock/consume behaviors & allocate to rewards pools
+                        'policies': {
+                            'p_lock': l,
+                            'p_consume': c
+                        },
+                        'variables':{
+                            've_accounts': s_new_ve_accounts,
+                            'data_assets': s_data_asset_consumed,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                            'rewards_pool_fees': s_protocol_fees_pool
+                        }
+                    },
+                    { # vote behavior
+                        'policies': {
+                            'p_vote': v
+                        },
+                        'variables':{
+                            'votes': s_votes
+                        }
+                    },
+                    { # distribute rewards
+                        'policies': {
+                            'p_active_rewards': p_active_rewards,
+                            'p_passive_and_fee_rewards':p_passive_and_fee_rewards
+                        },
+                        'variables':{
+                            'rewards_distributed_df_active': s_rewards_active,
+                            'rewards_distributed_df_passive': s_rewards_passive,
+                            'rewards_distributed_fees': s_rewards_fees,
+                            'ocean_treasury': s_treasury_ocean,
+                            'rewards_pool_fees': s_protocol_fees_pool,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    },
+                    { # rebalance ve accounts
+                        'policies': {
+                            'p_rebalance': p_rebalance,
+                        },
+                        'variables':{
+                            've_accounts': s_rebalance_ve_accounts,
+                            'ocean_unlocked_supply': s_ocean_circ,
+                        }
+                    }
+                ])
+                print(f"psub assumptions: Locking: {l.__name__}, Voting: {v.__name__}, Consumption: {c.__name__}")
+    return psubs
+
+def generate_psubs_stoch_2() -> List[List[Dict[str, any]]]:
+
+    locking = [p_lock_stoch]
+    voting = [p_vote_stoch, p_vote_stoch_2]
+    consuming = [p_data_asset_consumed_stoch, p_data_asset_consumed_stoch_2]
 
     psubs = []
     for l in locking:

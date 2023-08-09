@@ -22,7 +22,7 @@ def p_lock_1(params, substep, state_history, previous_state):
                                                   params['lock_supply_pct_cap'])
     
     new_ve_acct = a.create_new_agent_veaccount(ocean_locked, lock_duration, previous_state['timestep']+1, params['maxlock_dur'])
-    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': new_ve_acct}
+    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': np.array([new_ve_acct])}
 
 def p_lock_2(params, substep, state_history, previous_state):
     locked_supply = 0
@@ -39,7 +39,7 @@ def p_lock_2(params, substep, state_history, previous_state):
                                                   , params['lock_supply_pct_cap'])
     
     new_ve_acct = a.create_new_agent_veaccount(ocean_locked, lock_duration, previous_state['timestep']+1, params['maxlock_dur'])
-    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': new_ve_acct}
+    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': np.array([new_ve_acct])}
 
 def p_lock_3(params, substep, state_history, previous_state):
     locked_supply = 0
@@ -60,15 +60,17 @@ def p_lock_3(params, substep, state_history, previous_state):
                                                   , params['lock_supply_pct_cap'])
     
     new_ve_acct = a.create_new_agent_veaccount(ocean_locked, lock_duration, previous_state['timestep']+1, params['maxlock_dur'])
-    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': new_ve_acct}
+    return {'ocean_circ_delta': -ocean_locked, 'initialized_veaccount': np.array([new_ve_acct])}
 
 def p_lock_stoch(params, substep, state_history, previous_state):
     ocean_locked, lock_duration = b.behavior_lock_stoch(previous_state['ocean_unlocked_supply']
                                                         , params['weekly_lock_prob']
                                                         , params['minlock_amt']
                                                         , params['maxlock_amt']
-                                                        , params['minlock_dur']
-                                                        , params['maxlock_dur'])
+                                                        , params['lock_dur']['min_lock']
+                                                        , params['lock_dur']['max_lock'])
+                                                        #, params['minlock_dur']
+                                                        #, params['maxlock_dur'])
     new_ve_acct = np.array([])
     for i in range(len(ocean_locked)):
         new_ve_acct = np.append(new_ve_acct, a.create_new_agent_veaccount(ocean_locked[i], lock_duration[i], previous_state['timestep']+1, params['maxlock_dur']))
@@ -170,8 +172,10 @@ def p_vote_4(params, substep, state_history, previous_state):
 
 def p_vote_5(params, substep, state_history, previous_state):
     locked_supply = 0
+    ve_bal = 0
     for acct in previous_state['ve_accounts'].keys():
         locked_supply += previous_state['ve_accounts'][acct].locked
+        ve_bal += previous_state['ve_accounts'][acct].vebalance
 
     tot_dcv = 0
     for asset in previous_state['data_assets'].keys():
@@ -181,7 +185,7 @@ def p_vote_5(params, substep, state_history, previous_state):
     df_yield_cap = params['datafarming_weekly_yield_cap']
 
     active_pct = b.behavior_vote_active_3(previous_state['timestep']
-                                           , locked_supply
+                                           , ve_bal
                                            , eligible_rewards_active
                                            , tot_dcv
                                            , df_yield_cap)
@@ -197,6 +201,15 @@ def p_vote_stoch(params, substep, state_history, previous_state):
     behavior_data = b.behavior_vote_strategy_1(previous_state['run']
                                                , active_pct
                                                , previous_state['data_assets'])
+    return {'set_votes': behavior_data}
+
+def p_vote_stoch_2(params, substep, state_history, previous_state):
+    active_pct = b.behavior_vote_active_stoch(previous_state['ve_accounts']
+                                              , params['weekly_vote_success_prob'])
+    behavior_data = b.behavior_vote_strategy_2(previous_state['run']
+                                               , active_pct
+                                               , previous_state['data_assets']
+                                               , params['datafarming_max_assets_n'])
     return {'set_votes': behavior_data}
 
 def p_active_rewards(params, substep, state_history, previous_state):
@@ -301,6 +314,22 @@ def p_data_asset_consumed_stoch(params, substep, state_history, previous_state):
                                              , params['weekly_consume_multiple']
                                              , params['min_weekly_dcv_amt']
                                              , params['max_weekly_dcv_amt'])
+
+    fees_paid = params['protocol_transaction_fee'] * sum(behavior_data.values())
+    protocol_rev = fees_paid * (1 - params['revenue_burn_pct'])
+    burned = fees_paid * params['revenue_burn_pct']
+    return {'data_asset_consumed': behavior_data, 'rewards_pool_fees_delta': protocol_rev, 'ocean_circ_delta': -burned}
+
+def p_data_asset_consumed_stoch_2(params, substep, state_history, previous_state):
+    assets = previous_state['data_assets']
+
+    behavior_data = b.behavior_consume_stoch(previous_state['timestep']
+                                             , assets
+                                             , params['weekly_consume_prob']
+                                             , params['weekly_consume_multiple']
+                                             , params['min_weekly_dcv_amt']
+                                             , params['max_weekly_dcv_amt'])
+    behavior_data = b.behavior_consume_distr_2(assets, sum(behavior_data.values()))
 
     fees_paid = params['protocol_transaction_fee'] * sum(behavior_data.values())
     protocol_rev = fees_paid * (1 - params['revenue_burn_pct'])

@@ -119,17 +119,18 @@ def behavior_vote_active_2(timestep, locked_supply, eligible_passive_rewards, el
             pct = 0
     return pct
 
-def behavior_vote_active_3(timestep, locked_supply, eligible_active_rewards, tot_dcv, yield_cap):
+#def behavior_vote_active_3(timestep, locked_supply, eligible_active_rewards, tot_dcv, yield_cap):
+def behavior_vote_active_3(timestep, ve_bal, eligible_active_rewards, tot_dcv, yield_cap):
     '''
     logic: "perfect activation"
     - activate as much as is needed to maximize rewards & reach the highest APY (assuming perfect vote allocation & dcv distribution)
     '''
-    if locked_supply == 0:
+    if ve_bal == 0: #locked_supply == 0:
         pct = 0
     else:
         # activate as much is needed to (1) extract all eligible rewards @ yield_cap, or (2) extract all eligble rewards after dcv ceiling @ yield_cap, or (3) active entire locked supply
-        amt = min(eligible_active_rewards / yield_cap, tot_dcv * 0.01 / yield_cap, locked_supply)
-        pct = amt / locked_supply
+        amt = min(eligible_active_rewards / yield_cap, tot_dcv * 0.01 / yield_cap, ve_bal)#locked_supply)
+        pct = amt / ve_bal #locked_supply
     return pct
 
 def behavior_vote_active_stoch(accounts, weekly_vote_success_prob):
