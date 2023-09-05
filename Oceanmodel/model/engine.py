@@ -1,11 +1,7 @@
-import sys
-#sys.path.append("C:/Users/Surface/Documents/repos/playground")
-sys.path.append("/home/peterhacker/Documents/phRepo/playground")
-
-from Oceanmodel.policy_ve import *
-from Oceanmodel.stateupdates_ve import *
-from Oceanmodel.agents_ve import *
-from Oceanmodel.behavior_ve import *
+from Oceanmodel.model.policy_ve import *
+from Oceanmodel.model.stateupdates_ve import *
+from Oceanmodel.model.agents_ve import *
+from Oceanmodel.model.behavior_ve import *
 
 import pandas as pd
 import numpy as np

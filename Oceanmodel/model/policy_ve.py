@@ -5,8 +5,8 @@ sys.path.append("/home/peterhacker/Documents/phRepo/playground")
 import scipy
 import numpy as np
 
-import Oceanmodel.behavior_ve as b
-import Oceanmodel.agents_ve as a
+import Oceanmodel.model.behavior_ve as b
+import Oceanmodel.model.agents_ve as a
 
 def p_lock_1(params, substep, state_history, previous_state):
     locked_supply = 0
